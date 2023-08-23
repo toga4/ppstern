@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/fatih/color"
 )
 
 var (
@@ -29,16 +27,15 @@ var (
 
 var jsonFormatter = NewJsonFormatter()
 
-func ParseAndFormat(in []byte) (string, error) {
-	var l Log
-	if err := decodeJson(in, &l); err != nil {
+func ParseAndFormat(raw []byte) (string, error) {
+	var in Input
+	if err := decodeJson(raw, &in); err != nil {
 		return "", err
 	}
-	l.PodColor, l.ContainerColor = determineColor(l.PodName)
 
 	var m map[string]any
-	if err := decodeJson([]byte(l.Message), &m); err != nil {
-		return l.FormatRaw(), nil
+	if err := decodeJson([]byte(in.Message), &m); err != nil {
+		return in.Format(), nil
 	}
 
 	timestamp := extractTimestamp(m)
@@ -49,49 +46,38 @@ func ParseAndFormat(in []byte) (string, error) {
 		delete(m, key)
 	}
 
-	var b bytes.Buffer
-	if timestamp != "" {
-		b.WriteString(timestamp)
-		b.WriteString(" ")
+	out := &Output{
+		Timestamp:     timestamp,
+		Level:         level,
+		PodName:       in.PodName,
+		ContainerName: in.ContainerName,
+		Message:       message,
+		Rests:         m,
 	}
-	if level != "" {
-		b.WriteString(levelColor(level))
-		b.WriteString(" ")
-	}
-	b.WriteString(l.PodColor.Sprint(l.PodName))
-	b.WriteString(" ")
-	b.WriteString(l.ContainerColor.Sprint(l.ContainerName))
-	b.WriteString(" ")
-	b.WriteString(message)
-	if len(m) > 0 {
-		b.WriteString(" ")
-		b.Write(jsonFormatter.Format(m))
-	}
-	return b.String(), nil
+
+	return out.Format(), nil
+}
+
+type Input struct {
+	NodeName      string `json:"nodeName"`
+	Namespace     string `json:"namespace"`
+	PodName       string `json:"podName"`
+	ContainerName string `json:"containerName"`
+	Message       string `json:"message"`
+}
+
+func (i *Input) Format() string {
+	podColor, containerColor := determineColor(i.PodName)
+	return fmt.Sprintf("%s %s %s", podColor.Sprint(i.PodName), containerColor.Sprint(i.ContainerName), i.Message)
 }
 
 func decodeJson(in []byte, data any) error {
 	decoder := json.NewDecoder(bytes.NewReader(in))
 	decoder.UseNumber()
 	if err := decoder.Decode(data); err != nil {
-		return fmt.Errorf("failed to decode log: %w", err)
+		return err
 	}
 	return nil
-}
-
-type Log struct {
-	NodeName      string `json:"nodeName"`
-	Namespace     string `json:"namespace"`
-	PodName       string `json:"podName"`
-	ContainerName string `json:"containerName"`
-	Message       string `json:"message"`
-
-	PodColor       *color.Color `json:"-"`
-	ContainerColor *color.Color `json:"-"`
-}
-
-func (l *Log) FormatRaw() string {
-	return fmt.Sprintf("%s %s %s", l.PodColor.Sprint(l.PodName), l.ContainerColor.Sprint(l.ContainerName), l.Message)
 }
 
 func extractMessage(m map[string]any) string {
@@ -145,4 +131,41 @@ func extractAny(m map[string]any, keys ...string) any {
 		}
 	}
 	return nil
+}
+
+type Output struct {
+	Timestamp     string
+	Level         string
+	PodName       string
+	ContainerName string
+	Message       string
+	Rests         map[string]any
+}
+
+func (o *Output) Format() string {
+	var b bytes.Buffer
+	podColor, containerColor := determineColor(o.PodName)
+
+	if o.Timestamp != "" {
+		b.WriteString(o.Timestamp)
+		b.WriteString(" ")
+	}
+
+	if o.Level != "" {
+		b.WriteString(levelColor(o.Level))
+		b.WriteString(" ")
+	}
+
+	b.WriteString(podColor.Sprint(o.PodName))
+	b.WriteString(" ")
+	b.WriteString(containerColor.Sprint(o.ContainerName))
+	b.WriteString(" ")
+	b.WriteString(o.Message)
+
+	if len(o.Rests) > 0 {
+		b.WriteString(" ")
+		b.Write(jsonFormatter.Format(o.Rests))
+	}
+
+	return b.String()
 }
