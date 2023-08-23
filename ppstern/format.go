@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TylerBrock/colorjson"
 	"github.com/fatih/color"
 )
 
@@ -27,6 +26,8 @@ var (
 		"timestamp",
 	}
 )
+
+var jsonFormatter = NewJsonFormatter()
 
 func ParseAndFormat(in []byte) (string, error) {
 	var l Log
@@ -57,11 +58,7 @@ func ParseAndFormat(in []byte) (string, error) {
 	}
 	b.WriteString(fmt.Sprintf("%s %s %s", l.PodColor.Sprint(l.PodName), l.ContainerColor.Sprint(l.ContainerName), message))
 	if len(m) > 0 {
-		rests, err := colorjson.Marshal(m)
-		if err != nil {
-			rests = []byte(err.Error())
-		}
-		b.WriteString(fmt.Sprintf(" %s", rests))
+		b.WriteString(fmt.Sprintf(" %s", jsonFormatter.Format(m)))
 	}
 	return b.String(), nil
 }
