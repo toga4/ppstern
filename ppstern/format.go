@@ -128,6 +128,8 @@ func extractTimestamp(m map[string]any) string {
 				return time.Unix(i, 0).Format(layout)
 			}
 		}
+	default:
+		return fmt.Sprintf("%v", t)
 	}
 	return err.Error()
 }
