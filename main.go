@@ -16,6 +16,6 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		fmt.Printf("%s\n", s)
+		fmt.Println(s)
 	}
 }

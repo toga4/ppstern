@@ -51,14 +51,21 @@ func ParseAndFormat(in []byte) (string, error) {
 
 	var b bytes.Buffer
 	if timestamp != "" {
-		b.WriteString(fmt.Sprintf("%s ", timestamp))
+		b.WriteString(timestamp)
+		b.WriteString(" ")
 	}
 	if level != "" {
-		b.WriteString(fmt.Sprintf("%s ", levelColor(level)))
+		b.WriteString(levelColor(level))
+		b.WriteString(" ")
 	}
-	b.WriteString(fmt.Sprintf("%s %s %s", l.PodColor.Sprint(l.PodName), l.ContainerColor.Sprint(l.ContainerName), message))
+	b.WriteString(l.PodColor.Sprint(l.PodName))
+	b.WriteString(" ")
+	b.WriteString(l.ContainerColor.Sprint(l.ContainerName))
+	b.WriteString(" ")
+	b.WriteString(message)
 	if len(m) > 0 {
-		b.WriteString(fmt.Sprintf(" %s", jsonFormatter.Format(m)))
+		b.WriteString(" ")
+		b.Write(jsonFormatter.Format(m))
 	}
 	return b.String(), nil
 }
