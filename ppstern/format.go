@@ -8,23 +8,6 @@ import (
 	"time"
 )
 
-var (
-	omitKeys = []string{
-		"logging.googleapis.com/trace",
-		"logging.googleapis.com/spanId",
-		"logging.googleapis.com/trace_sampled",
-		"caller",
-		"stacktrace",
-		"level",
-		"severity",
-		"msg",
-		"message",
-		"ts",
-		"time",
-		"timestamp",
-	}
-)
-
 var jsonFormatter = NewJsonFormatter()
 
 func ParseAndFormat(raw []byte) (string, error) {
@@ -38,12 +21,27 @@ func ParseAndFormat(raw []byte) (string, error) {
 		return in.Format(), nil
 	}
 
-	timestamp := extractTimestamp(m)
-	level := extractLevel(m)
-	message := extractMessage(m)
+	timestamp := formatTimestamp(removeAny[any](m, "ts", "time", "timestamp"))
+	level := removeAny[string](m, "level", "severity")
+	message := removeAny[string](m, "msg", "message")
 
+	omitKeys := []string{
+		"logging.googleapis.com/trace_sampled",
+		"caller",
+		"stacktrace",
+	}
 	for _, key := range omitKeys {
 		delete(m, key)
+	}
+
+	// truncate TraceID and SpanID to last 6 characters
+	tracingKeys := []string{"logging.googleapis.com/trace", "logging.googleapis.com/spanId"}
+	for _, key := range tracingKeys {
+		if v, ok := m[key]; ok {
+			if v, ok := v.(string); ok {
+				m[key] = v[max(0, len(v)-6):]
+			}
+		}
 	}
 
 	out := &Output{
@@ -80,57 +78,46 @@ func decodeJson(in []byte, data any) error {
 	return nil
 }
 
-func extractMessage(m map[string]any) string {
-	if l, ok := extractAny(m, "msg", "message").(string); ok {
-		return l
+func removeAny[T any](m map[string]any, keys ...string) (v T) {
+	for _, k := range keys {
+		if v, ok := m[k]; ok {
+			if v, ok := v.(T); ok {
+				delete(m, k)
+				return v
+			}
+		}
 	}
-	return ""
+	return
 }
 
-func extractLevel(m map[string]any) string {
-	if l, ok := extractAny(m, "level", "severity").(string); ok {
-		return l
-	}
-	return ""
-}
+const (
+	timestampLayout = "2006-01-02T15:04:05.000Z07:00"
+)
 
-func extractTimestamp(m map[string]any) string {
-	t := extractAny(m, "ts", "time", "timestamp")
-
-	layout := "2006-01-02T15:04:05.000Z07:00"
-
+func formatTimestamp(t any) string {
 	var err error
 	switch timestamp := t.(type) {
 	case string:
 		var t time.Time
 		if t, err = time.Parse(time.RFC3339Nano, timestamp); err == nil {
-			return t.Format(layout)
+			return t.Format(timestampLayout)
 		}
 	case json.Number:
 		if strings.Contains(timestamp.String(), ".") {
 			var f float64
 			if f, err = timestamp.Float64(); err == nil {
-				return time.Unix(int64(f), int64((f-float64(int64(f)))*1e9)).Format(layout)
+				return time.Unix(int64(f), int64((f-float64(int64(f)))*1e9)).Format(timestampLayout)
 			}
 		} else {
 			var i int64
 			if i, err = timestamp.Int64(); err == nil {
-				return time.Unix(i, 0).Format(layout)
+				return time.Unix(i, 0).Format(timestampLayout)
 			}
 		}
 	default:
 		return fmt.Sprintf("%v", t)
 	}
 	return err.Error()
-}
-
-func extractAny(m map[string]any, keys ...string) any {
-	for _, k := range keys {
-		if v, ok := m[k]; ok {
-			return v
-		}
-	}
-	return nil
 }
 
 type Output struct {
