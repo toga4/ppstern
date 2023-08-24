@@ -24,6 +24,8 @@ func ParseAndFormat(raw []byte) (string, error) {
 	timestamp := formatTimestamp(removeAny[any](m, "ts", "time", "timestamp"))
 	level := removeAny[string](m, "level", "severity")
 	message := removeAny[string](m, "msg", "message")
+	trace := removeAny[string](m, "trace", "logging.googleapis.com/trace")
+	span := removeAny[string](m, "span", "logging.googleapis.com/spanId")
 
 	omitKeys := []string{
 		"logging.googleapis.com/trace_sampled",
@@ -34,22 +36,14 @@ func ParseAndFormat(raw []byte) (string, error) {
 		delete(m, key)
 	}
 
-	// truncate TraceID and SpanID to last 6 characters
-	tracingKeys := []string{"logging.googleapis.com/trace", "logging.googleapis.com/spanId"}
-	for _, key := range tracingKeys {
-		if v, ok := m[key]; ok {
-			if v, ok := v.(string); ok {
-				m[key] = v[max(0, len(v)-6):]
-			}
-		}
-	}
-
 	out := &Output{
 		Timestamp:     timestamp,
 		Level:         level,
 		PodName:       in.PodName,
 		ContainerName: in.ContainerName,
 		Message:       message,
+		Trace:         trace,
+		Span:          span,
 		Rests:         m,
 	}
 
@@ -65,7 +59,7 @@ type Input struct {
 }
 
 func (i *Input) Format() string {
-	podColor, containerColor := determineColor(i.PodName)
+	podColor, containerColor := determineColorForPod(i.PodName)
 	return fmt.Sprintf("%s %s %s", podColor.Sprint(i.PodName), containerColor.Sprint(i.ContainerName), i.Message)
 }
 
@@ -126,12 +120,14 @@ type Output struct {
 	PodName       string
 	ContainerName string
 	Message       string
+	Trace         string
+	Span          string
 	Rests         map[string]any
 }
 
 func (o *Output) Format() string {
 	var b bytes.Buffer
-	podColor, containerColor := determineColor(o.PodName)
+	podColor, containerColor := determineColorForPod(o.PodName)
 
 	if o.Timestamp != "" {
 		b.WriteString(o.Timestamp)
@@ -147,6 +143,18 @@ func (o *Output) Format() string {
 	b.WriteString(" ")
 	b.WriteString(containerColor.Sprint(o.ContainerName))
 	b.WriteString(" ")
+
+	if o.Trace != "" {
+		traceColor := determineColor(o.Trace)
+		b.WriteString(traceColor.Sprint(lastN(o.Trace, 6)))
+		b.WriteString(" ")
+	}
+	if o.Span != "" {
+		spanColor := determineColor(o.Span)
+		b.WriteString(spanColor.Sprint(lastN(o.Span, 6)))
+		b.WriteString(" ")
+	}
+
 	b.WriteString(o.Message)
 
 	if len(o.Rests) > 0 {
@@ -155,4 +163,8 @@ func (o *Output) Format() string {
 	}
 
 	return b.String()
+}
+
+func lastN(s string, n int) string {
+	return s[max(0, len(s)-n):]
 }
