@@ -28,6 +28,8 @@ func ParseAndFormat(raw []byte) (string, error) {
 	span := removeAny[string](m, "span", "logging.googleapis.com/spanId")
 
 	omitKeys := []string{
+		"logging.googleapis.com/trace",
+		"logging.googleapis.com/spanId",
 		"logging.googleapis.com/trace_sampled",
 		"caller",
 		"stacktrace",
