@@ -21,7 +21,7 @@ func ParseAndFormat(raw []byte) (string, error) {
 		return in.Format(), nil
 	}
 
-	timestamp := formatTimestamp(removeAny[any](m, "ts", "time", "timestamp"))
+	timestamp := formatTimestamp(removeAny[any](m, "time", "ts", "timestamp"))
 	level := removeAny[string](m, "level", "severity")
 	message := removeAny[string](m, "msg", "message")
 	trace := removeAny[string](m, "trace", "logging.googleapis.com/trace")
@@ -31,6 +31,8 @@ func ParseAndFormat(raw []byte) (string, error) {
 		"logging.googleapis.com/trace",
 		"logging.googleapis.com/spanId",
 		"logging.googleapis.com/trace_sampled",
+		"time",
+		"ts",
 		"caller",
 		"stacktrace",
 	}
