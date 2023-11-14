@@ -114,7 +114,7 @@ func formatTimestamp(t any) string {
 		var t time.Time
 		for _, l := range supportedLayouts {
 			if t, err = time.Parse(l, timestamp); err == nil {
-				return t.Format(timestampLayout)
+				return t.Local().Format(timestampLayout)
 			}
 		}
 		return timestamp
