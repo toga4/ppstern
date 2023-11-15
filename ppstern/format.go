@@ -13,7 +13,7 @@ var jsonFormatter = NewJsonFormatter()
 func ParseAndFormat(raw []byte) (string, error) {
 	var in Input
 	if err := decodeJson(raw, &in); err != nil {
-		return "", err
+		return string(raw), err
 	}
 
 	var m map[string]any

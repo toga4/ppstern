@@ -14,7 +14,7 @@ func main() {
 		in := scanner.Bytes()
 		s, err := ppstern.ParseAndFormat(in)
 		if err != nil {
-			panic(err)
+			fmt.Fprintf(os.Stderr, "parse error: %v\n", err)
 		}
 		fmt.Println(s)
 	}
