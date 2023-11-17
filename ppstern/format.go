@@ -27,17 +27,24 @@ func ParseAndFormat(raw []byte) (string, error) {
 	trace := removeAny[string](m, "trace", "logging.googleapis.com/trace")
 	span := removeAny[string](m, "span", "logging.googleapis.com/spanId")
 
-	omitKeys := []string{
+	deleteKeys := []string{
 		"logging.googleapis.com/trace",
 		"logging.googleapis.com/spanId",
 		"logging.googleapis.com/trace_sampled",
 		"time",
 		"ts",
 		"caller",
+	}
+	for _, key := range deleteKeys {
+		delete(m, key)
+	}
+	omitKeys := []string{
 		"stacktrace",
 	}
 	for _, key := range omitKeys {
-		delete(m, key)
+		if _, ok := m[key]; ok {
+			m[key] = "..."
+		}
 	}
 
 	out := &Output{
